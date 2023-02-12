@@ -6,7 +6,7 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
-from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleControlMode
+from px4_msgs.msg import OffboardControlMode, TrajectorySetpoint, VehicleCommand, VehicleControlMode, VehicleStatus
 
 
 class OffboardControl(Node):
@@ -22,10 +22,18 @@ class OffboardControl(Node):
             depth=1
         )
         
+        self.status_sub = self.create_subscription(
+            VehicleStatus,
+            '/fmu/out/vehicle_status',
+            self.vehicle_status_callback,
+            qos)
+        
         self.offboard_control_mode_publisher_ = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos)
         self.trajectory_setpoint_publisher_ = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos)
         self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, '/fmu/in/vehicle_command', qos)
-        
+
+        self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
+
         timer_period = 0.02  # seconds
         self.dt = timer_period
         self.theta = 0.0
@@ -45,7 +53,7 @@ class OffboardControl(Node):
             self.arm()
            
         if self.offboard_setpoint_counter_ == 1650:
-            # Land and cancel timer after (22s)
+            # Land and cancel timer after (33s)
             self.land()
             self.timer.cancel()
             
@@ -53,16 +61,22 @@ class OffboardControl(Node):
             # offboard_control_mode needs to be paired with trajectory_setpoint
             print("start counter")
             self.publish_offboard_control_mode()
-            self.publish_trajectory_setpoint()
+            if self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+                self.publish_trajectory_setpoint()
             self.offboard_setpoint_counter_ += 1
 
         if self.offboard_setpoint_counter_ >= 550 and self.offboard_setpoint_counter_ < 1650:
             # offboard_control_mode needs to be paired with trajectory_setpoint
             print("start counter")
             self.publish_offboard_control_mode()
-            self.publish_trajectory_setpoint_circle()
+            if self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+                self.publish_trajectory_setpoint_circle()
             self.offboard_setpoint_counter_ += 1
 
+    def vehicle_status_callback(self, msg):
+        print("NAV_STATUS: ", msg.nav_state)
+        print("  - offboard status: ", VehicleStatus.NAVIGATION_STATE_OFFBOARD)
+        self.nav_state = msg.nav_state
 
 
     def arm(self):
