@@ -33,6 +33,7 @@ cd ~/dir/ros_packages/src/px4-offboard/px4_offboard
 Replace the file 'offboard_control.py' from this repository to the directory above and build:
 
 ```
+cd ~/dir/ros_packages
 source /opt/ros/foxy/setup.bash
 colcon build
 source install/local_setup.bash
