@@ -1,4 +1,4 @@
-This is an example of code for takeoff, move and land the drone with PX4 and ROS2 via XRCD-DDS.
+This is an example of code for takeoff, move and land the drone with PX4 and ROS2 via XRCE-DDS.
 
 1 - Simulation setup:
 
