@@ -13,7 +13,7 @@ cd /dir/PX4-Autopilot/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models
 - Delete iris.sdf file located in the directory above.
 
 - Copy the content of backup_iris.sdf.jinja and replace in iris.sdf.jinja file located in the directory above. 
-The file backup_iris.sdf.jinja can be found at: /this_repo_dir/px4_ros2_xrcedds/my_package/models/iris
+The file backup_iris.sdf.jinja can be found at: /this_repo_dir/my_package/models/iris
 
 2- Terminal 1: Make PX4 and roslaunch the gazebo simulation:
 
