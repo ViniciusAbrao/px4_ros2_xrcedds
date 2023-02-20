@@ -1,3 +1,20 @@
+## my_package
+
+This ROS2 package spawn the iris drone with RGBD camera and publish the image in the correspondent topics. 
+
+TODO: to run the PX4 in the ROS2 launch file
+
+```
+cd ~/dev/px4_ros2/ros_packages
+source /opt/ros/foxy/setup.bash
+colcon build
+source install/local_setup.bash
+ros2 launch my_package spawn_camera.launch.py
+```
+
+## px4_offboard
+
+REFERENCE: https://github.com/Jaeyoung-Lim/px4-offboard
 This is an example of code for takeoff, move and land the drone with PX4 and ROS2 via XRCE-DDS.
 
 1 - Simulation setup:
