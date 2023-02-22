@@ -2,8 +2,6 @@
 
 This package spawn the iris drone with RGBD camera and publish the image in the correspondent topics. 
 
-TODO: rotate point cloud to fix directions.
-
 1- Edit sdf files to include the camera plugin:
 
 ```
@@ -49,7 +47,7 @@ source /opt/ros/foxy/setup.bash
 ros2 run ros1_bridge dynamic_bridge
 ```
 
-ps: The command bellow to bridge all the topics, including some we does not need.
+ps: Use the command bellow to bridge all the topics, including some we does not need.
 
 ros2 run ros1_bridge dynamic_bridge --bridge-all-topics
 
