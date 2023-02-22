@@ -68,5 +68,10 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             arguments=['-d', [os.path.join(package_dir, 'my.rviz')]]
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments = ['0', '0', '0', '-1.5708', '0', '-1.5708', 'camera_rotated', 'camera_depth_frame']
         )
     ])

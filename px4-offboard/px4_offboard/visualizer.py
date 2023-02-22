@@ -76,7 +76,8 @@ class PX4Visualizer(Node):
         
         # Declare and acquire `framename` parameter
         self.framename = self.declare_parameter(
-          'framename', 'camera_depth_frame').get_parameter_value().string_value
+          'framename', 'camera_depth').get_parameter_value().string_value
+
         # Initialize the transform broadcaster
         self.tf_broadcaster = TransformBroadcaster(self)
         
@@ -242,8 +243,8 @@ class PX4Visualizer(Node):
         # Read message content and assign it to
         # corresponding tf variables
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'world'
-        t.child_frame_id = self.framename
+        t.header.frame_id = self.framename
+        t.child_frame_id = 'world'
         # get x, y and z translation
         t.transform.translation.x = self.vehicle_local_position[0]
         t.transform.translation.y = self.vehicle_local_position[1]
@@ -253,15 +254,15 @@ class PX4Visualizer(Node):
         q2=self.vehicle_attitude[1]
         q3=self.vehicle_attitude[2]
         q4=self.vehicle_attitude[3]
-        roll,pitch,yaw=self.euler_from_quaternion(q1, q2, q3, q4)
-        q1r,q2r,q3r,q4r=self.get_quaternion_from_euler(roll-1.5708, pitch, yaw)
+        #roll,pitch,yaw=self.euler_from_quaternion(q1, q2, q3, q4)
+        #q1r,q2r,q3r,q4r=self.get_quaternion_from_euler(-1.5708, 0, -1.5708)
         t.transform.rotation.x = q1
         t.transform.rotation.y = q2
         t.transform.rotation.z = q3
         t.transform.rotation.w = q4
         # Send the transformation
         self.tf_broadcaster.sendTransform(t)
-
+        
 def main(args=None):
     rclpy.init(args=args)
 
