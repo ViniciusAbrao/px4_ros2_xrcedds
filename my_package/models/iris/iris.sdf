@@ -335,12 +335,12 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
-    <plugin name='rosbag' filename='libgazebo_multirotor_base_plugin.so'>
+    <plugin name='rosbag' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_multirotor_base_plugin.so'>
       <robotNamespace/>
       <linkName>base_link</linkName>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='front_right_motor_model' filename='libgazebo_motor_model.so'>
+    <plugin name='front_right_motor_model' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_0_joint</jointName>
       <linkName>rotor_0</linkName>
@@ -357,7 +357,7 @@
       <motorSpeedPubTopic>/motor_speed/0</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='back_left_motor_model' filename='libgazebo_motor_model.so'>
+    <plugin name='back_left_motor_model' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_1_joint</jointName>
       <linkName>rotor_1</linkName>
@@ -374,7 +374,7 @@
       <motorSpeedPubTopic>/motor_speed/1</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='front_left_motor_model' filename='libgazebo_motor_model.so'>
+    <plugin name='front_left_motor_model' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_2_joint</jointName>
       <linkName>rotor_2</linkName>
@@ -391,7 +391,7 @@
       <motorSpeedPubTopic>/motor_speed/2</motorSpeedPubTopic>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
-    <plugin name='back_right_motor_model' filename='libgazebo_motor_model.so'>
+    <plugin name='back_right_motor_model' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_motor_model.so'>
       <robotNamespace/>
       <jointName>rotor_3_joint</jointName>
       <linkName>rotor_3</linkName>
@@ -426,16 +426,16 @@
       <child>mag::link</child>
       <parent>base_link</parent>
     </joint>
-    <plugin name='groundtruth_plugin' filename='libgazebo_groundtruth_plugin.so'>
+    <plugin name='groundtruth_plugin' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_groundtruth_plugin.so'>
       <robotNamespace/>
     </plugin>
-    <plugin name='barometer_plugin' filename='libgazebo_barometer_plugin.so'>
+    <plugin name='barometer_plugin' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_barometer_plugin.so'>
       <robotNamespace/>
       <pubRate>50</pubRate>
       <baroTopic>/baro</baroTopic>
       <baroDriftPaPerSec>0</baroDriftPaPerSec>
     </plugin>
-    <plugin name='mavlink_interface' filename='libgazebo_mavlink_interface.so'>
+    <plugin name='mavlink_interface' filename='~/dev/px4_ros2/PX4-Autopilot/build/px4_sitl_default/build_gazebo-classic/libgazebo_mavlink_interface.so'>
       <robotNamespace/>
       <imuSubTopic>/imu</imuSubTopic>
       <magSubTopic>/mag</magSubTopic>

@@ -54,6 +54,8 @@ import math
 from geometry_msgs.msg import TransformStamped
 from tf2_ros import TransformBroadcaster
 
+from sensor_msgs.msg import PointCloud2, Image
+
 def vector2PoseMsg(frame_id, position, attitude):
     pose_msg = PoseStamped()
     # msg.header.stamp = Clock().now().nanoseconds / 1000
@@ -72,9 +74,9 @@ class PX4Visualizer(Node):
     def __init__(self):
         super().__init__('px4_visualizer')
         
-        # Declare and acquire `turtlename` parameter
-        self.turtlename = self.declare_parameter(
-          'turtlename', 'turtle').get_parameter_value().string_value
+        # Declare and acquire `framename` parameter
+        self.framename = self.declare_parameter(
+          'framename', 'camera_depth_frame').get_parameter_value().string_value
         # Initialize the transform broadcaster
         self.tf_broadcaster = TransformBroadcaster(self)
         
@@ -100,12 +102,32 @@ class PX4Visualizer(Node):
             '/fmu/in/trajectory_setpoint',
             self.trajectory_setpoint_callback,
             qos_profile)
+            
+        self.depth_img_sub = self.create_subscription(
+            Image,
+            '/camera/depth/image_raw',
+            self.depth_image_callback,
+            qos_profile)
+        self.depth_points_sub = self.create_subscription(
+            PointCloud2,
+            '/camera/depth/points',
+            self.depth_points_callback,
+            qos_profile)
+        self.camera_img_sub = self.create_subscription(
+            Image,
+            '/camera/color/image_raw',
+            self.camera_image_callback,
+            qos_profile)
 
         self.vehicle_pose_pub = self.create_publisher(PoseStamped, '/px4_visualizer/vehicle_pose', 10)
         self.vehicle_vel_pub = self.create_publisher(Marker, '/px4_visualizer/vehicle_velocity', 10)
         self.vehicle_path_pub = self.create_publisher(Path, '/px4_visualizer/vehicle_path', 10)
         self.setpoint_path_pub = self.create_publisher(Path, '/px4_visualizer/setpoint_path', 10)
 
+        self.camera_image = Image()
+        self.depth_image = Image()
+        self.depth_points = PointCloud2()
+        
         self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
         self.vehicle_local_position = np.array([0.0, 0.0, 0.0])
         self.vehicle_local_velocity = np.array([0.0, 0.0, 0.0])
@@ -114,6 +136,39 @@ class PX4Visualizer(Node):
         self.setpoint_path_msg = Path()
         timer_period = 0.05  # seconds
         self.timer = self.create_timer(timer_period, self.cmdloop_callback)
+        
+    def camera_image_callback(self, msg):
+        self.camera_image=msg
+    
+    def depth_points_callback(self, msg):
+        self.depth_image=msg
+    
+    def depth_image_callback(self, msg):    
+        self.depth_points=msg
+        
+    def get_quaternion_from_euler(self, roll, pitch, yaw):
+        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
+        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
+        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
+ 
+        return qx, qy, qz, qw
+    
+    def euler_from_quaternion(self, x, y, z, w):
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+    
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+    
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians
 
     def vehicle_attitude_callback(self, msg):
         # TODO: handle NED->ENU transformation 
@@ -188,19 +243,22 @@ class PX4Visualizer(Node):
         # corresponding tf variables
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = 'world'
-        t.child_frame_id = self.turtlename
-        # Turtle only exists in 2D, thus we get x and y translation
-        # coordinates from the message and set the z coordinate to 0
+        t.child_frame_id = self.framename
+        # get x, y and z translation
         t.transform.translation.x = self.vehicle_local_position[0]
         t.transform.translation.y = self.vehicle_local_position[1]
         t.transform.translation.z = self.vehicle_local_position[2]
-        # For the same reason, turtle can only rotate around one axis
-        # and this why we set rotation in x and y to 0 and obtain
-        # rotation in z axis from the message
-        t.transform.rotation.x = self.vehicle_attitude[0]
-        t.transform.rotation.y = self.vehicle_attitude[1]
-        t.transform.rotation.z = self.vehicle_attitude[2]
-        t.transform.rotation.w = self.vehicle_attitude[3]
+        # rotation
+        q1=self.vehicle_attitude[0]
+        q2=self.vehicle_attitude[1]
+        q3=self.vehicle_attitude[2]
+        q4=self.vehicle_attitude[3]
+        roll,pitch,yaw=self.euler_from_quaternion(q1, q2, q3, q4)
+        q1r,q2r,q3r,q4r=self.get_quaternion_from_euler(roll-1.5708, pitch, yaw)
+        t.transform.rotation.x = q1
+        t.transform.rotation.y = q2
+        t.transform.rotation.z = q3
+        t.transform.rotation.w = q4
         # Send the transformation
         self.tf_broadcaster.sendTransform(t)
 
