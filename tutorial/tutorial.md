@@ -10,7 +10,7 @@ There are different ways to connect the RPi to the Pixhawk:
 
 The connection via `TELEM` port can be done with a FTDI Chip USB-to-serial adapter board or directly with the RPi's TX/RX pins. The following steps describes the connections using the TX/RX pins, since no additional board is required.
 
-There are different models of Pixhawk and RPi, therefore, the main concepts are covered and illustrated in order to give the user the necessary knowledge for any other configuration. The first step is the identification of the `TELEM 2` and the `USB` ports in the Pixhawk. The image illustrate the ports in the Pixhawk-6C Model.
+There are different models of Pixhawk and RPi, therefore, the main concepts are covered and illustrated in order to give the user the necessary knowledge for any other configuration. The first step is the identification of the `TELEM 2` and the `USB` ports in the Pixhawk. The image illustrates the ports in the Pixhawk-6C Model.
 
 <img src="images/pixhawk_6c.png" width="402" height="452" />
 
