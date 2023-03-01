@@ -132,7 +132,7 @@ To supply the Pixhawk with 5 Volts is possible to follow with the connection of 
 
 Also, for this setup moment, the RPi is charged with 5 Volts via Power Supply (external source/charger). 
 
-PS.: For an onboard setup, in the drone, it is not recommended to connect the `TELEM2` VCC to supply the RPi in the 5V power (pin 4). You can use your own power supply board to power the RPi baseboard. 
+Ps.: For an onboard setup, in the drone, it is not recommended to connect the `TELEM2` VCC to supply the RPi in the 5V power (pin 4). You can use your own power supply board to power the RPi baseboard. 
 
 Next, run the mavproxy connection at `/dev/ttyAMA0`. In the RPi's terminal:
 
@@ -230,7 +230,7 @@ source /opt/ros/humble/setup.bash
 ros2 topic list
 ```
 
-To communicate simultaneously via both XRCE_DDS and MAVlink, we can keep the `TELEM2` connected via RX/TX and also connect Pixhawk `USB` on RPi. 
+To communicate simultaneously via both XRCE_DDS and MAVlink, we can keep the `TELEM2` connected via RX/TX and also connect Pixhawk `USB` at the RPi. 
 
 Before disconnect the `USB` from laptop, remember to set the parameters:
 
@@ -256,4 +256,4 @@ sudo chmod a+rw /dev/ttyACM0
 roslaunch mavros px4.launch fcu_url:=/dev/ttyACM0 gcs_url:=udp://@laptop_IP
 ```
 
-PS.: It is not possible to configure XRCE_DDS_0_CFG = USB (/dev/ttyACM0 port). So, the Pixhawk XRCE_DDS communication would not work on laptop via USB.
+Ps.: It is not possible to configure XRCE_DDS_0_CFG = USB (/dev/ttyACM0 port). So, the Pixhawk XRCE_DDS communication would not work on laptop via USB.
