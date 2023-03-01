@@ -48,7 +48,7 @@ Prepare the Ubuntu 22.04's boot SD card following the official tutorial availabl
 
 https://ubuntu.com/tutorials/how-to-install-ubuntu-desktop-on-raspberry-pi-4#1-overview
 
-Next, connect SD card in the RPi. Connect the mouse, keyboard, monitor and connect the RPi on 5v Power Supply (external source/charger).
+Next, connect the SD card in the RPi. Connect the mouse, keyboard, monitor and connect the RPi on 5v Power Supply (external source/charger).
 
 Turn on the RPi to boot on SD card and install Ubuntu. In the sequence, install raspi-config in the RPi's terminal:
 
@@ -103,20 +103,20 @@ sudo apt remove modemmanager
 Connect the Pixhawk with the laptop via `USB` cable and change the following parameters in QGroundControl:
 
 ```
-MAV_0_CONFIG = TELEM1
+MAV_0_CONFIG = TELEM2
 XRCE_DDS_0_CFG = Disabled
 SER_TEL1_BAUD = 57600
 ```
 
 Next, connect the Pixhawk `TELEM2` pins TX/RX/Ground on RPi correspondent pins. We are going to leave the `TELEM1` port for a setup with a Radio Controller.
 
-The listed connections must be done:
+The connections listed below must be done:
 
 1. `TELEM2` TX -> RPi RXD (GPIO 15 - pin 10)
 2. `TELEM2` RX -> RPi TXD (GPIO 14 - pin 8)
 3. `TELEM2` GND -> RPi Ground (pin 6)
 
-It is important to identify the correct pins in the hardware. The image illustrate the `TELEM2` pins in the Pixhawk-6C Model.
+It is important to identify the correct pins in the hardware. The image illustrates the `TELEM2` pins in the Pixhawk-6C Model.
 
 <img src="images/pixhawk_pins.png" width="914" height="360" /> 
 
@@ -124,22 +124,24 @@ Ps.: The pins are numbered according to the following:
 
 <img src="images/pins_numbers.png" width="615" height="232" /> 
 
-The following image illustrates the correspondent pins in the RPi GPIO.
+The following image illustrates the correspondent pins at the RPi GPIO.
 
 <img src="images/rpi_gpio.png" width="845" height="457" /> 
 
-To supply the Pixhawk with 5 Volts is possible to follow with the connection of `POWER1` port in a LiPO battery, via Power Module (PM02, for example). Another option, for this setup moment, is to supply the 5 Volts via the connection of the Pixhawk's `USB` on a smartphone charger, for example, or by keeping it in the laptop `USB`. Also, for this setup moment, the RPi is charged with 5 Volts via Power Supply (external source/charger). 
+To supply the Pixhawk with 5 Volts is possible to follow with the connection of `POWER1` port with a LiPO battery, via Power Module (PM02, for example). Another option, for this setup moment, is to supply the 5 Volts via the connection of the Pixhawk's `USB` with a smartphone charger, for example, or by keeping it in the laptop `USB`. 
+
+Also, for this setup moment, the RPi is charged with 5 Volts via Power Supply (external source/charger). 
 
 PS.: For an onboard setup, in the drone, it is not recommended to connect the `TELEM2` VCC to supply the RPi in the 5V power (pin 4). You can use your own power supply board to power the RPi baseboard. 
 
-Next, run the mavproxy connection on `/dev/ttyAMA0`. In the RPi's terminal:
+Next, run the mavproxy connection at `/dev/ttyAMA0`. In the RPi's terminal:
 
 ```
 sudo mavproxy.py --master=/dev/serial0 --baudrate 57600
 ```
 
-At this moment, you are going to see in the RPi's terminal the MAVlink communication established with the Pixhawk done via RX/TX pins. 
-The MAVlink communication is also possible via USB connection, changing the command to:
+At this moment, you are going to see in the RPi's terminal the MAVlink communication established with the Pixhawk, via RX/TX pins. 
+The MAVlink communication is also possible via USB connection, by changing the command to:
 
 ```
 sudo chmod a+rw /dev/ttyACM0
@@ -150,7 +152,7 @@ The steps above are important to double check that the hardware communication is
 
 ## ROS setup on RPi
 
-To install ROS 2 Humble you can follow the official tutorial available in the website:
+To install ROS 2 Humble you can follow the official tutorial, available in the website:
 
 https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
 
@@ -190,14 +192,16 @@ XRCE_DDS_0_CFG = TELEM1
 
 3. Use SER_TEL1_BAUD to set the baudrate.
 
-To use `TELEM2` (ttyS3 of Pixhawk):
+If you want to use `TELEM2` (ttyS3 of Pixhawk):
 
 ```
 XRCE_DDS_0_CFG = TELEM2
 SER_TEL2_BAUD = 921600
 ```
 
-To check if it is already running, run in the QGroundControl's MavlinkConsole: 
+Ps.: At this moment, the Pixhawk must be connected with the laptop, via `USB`, so the QGroundControl can be used to change the parameters described above.
+
+To check the status of the microdds_client, run in the QGroundControl's MavlinkConsole: 
 
 ```
 microdds_client status
@@ -209,15 +213,15 @@ If it is not running yet, start the client in the MavlinkConsole:
 microdds_client start -t serial -d /dev/ttyS3 -b 921600
 ```
 
-And, in the RPi's terminal:
+In the command above we have used the `/dev/ttyS3` to establish the XRCE_DDS communication, since it is related to `TELEM2`, according to the table:
+
+<img src="images/devs.png" width="360" height="353" /> 
+
+To start the agent, run the following command in the RPi's terminal:
 
 ```
 sudo MicroXRCEAgent serial --dev /dev/serial0 -b 921600
 ```
-
-In the command above we have used `/dev/ttyS3` to establish the XRCE_DDS communication, since it is related to `TELEM2`, according to the table:
-
-<img src="images/devs.png" width="360" height="353" /> 
 
 To see the ROS 2 topics available, run in a new RPi's terminal:
 
@@ -227,14 +231,23 @@ ros2 topic list
 ```
 
 To communicate simultaneously via both XRCE_DDS and MAVlink, we can keep the `TELEM2` connected via RX/TX and also connect Pixhawk `USB` on RPi. 
+
+Before disconnect the `USB` from laptop, remember to set the parameters:
+
+```
+MAV_0_CONFIG = TELEM1
+SER_TEL1_BAUD = 57600
+XRCE_DDS_0_CFG = TELEM2
+SER_TEL2_BAUD = 921600
+```
+
 The `TELEM2` is going to keep the XRCE_DDS communication with the microdds_client, as above, and the `USB` is going to keep the MAVlink communication. Remember to open a new RPi's terminal and run:
 
 ```
 sudo chmod a+rw /dev/ttyACM0
 sudo mavproxy.py --master=/dev/ttyACM0 --baudrate 57600
 ```
-
-This is a particular setup when we are looking for both offboard control, via XRCE_DDS with the RPi, and simultaneously keep monitoring the drone via MAVlink with QGroundControl.
+This is a particular setup when we are looking for both offboard control, via XRCE_DDS with the RPi, and simultaneously to keep monitoring the drone via MAVlink with QGroundControl.
 Since the Pixhawk is connected with the RPi, a remote control via QGroundControl (in a ground station laptop) can be done using SSH and the mavros package, running in a new terminal:
 
 ```
