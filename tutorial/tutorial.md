@@ -12,7 +12,7 @@ The connection via `TELEM` port can be done with a FTDI Chip USB-to-serial adapt
 
 Furthermore, there are different models of Pixhawk and RPi, the main concepts are covered and illustrated in order to give the user the necessary knowledge for any other configuration. The first step is the identification of the `TELEM 2` and the `USB` ports in the Pixhawk. The image illustrate the ports in the Pixhawk-6C Model.
 
-<img src="images/pixhawk_6c.png" width="700" height="400" />
+<img src="images/pixhawk_6c.png" width="402" height="452" />
 
 ## PX4 setup in Pixhawk
 
@@ -118,7 +118,7 @@ The listed connections must be done:
 
 It is important to correct identify the correct pins in the hardware. The image illustrate the `TELEM2` pins in the Pixhawk-6C Model.
 
-<img src="images/pixhawk_pins.png" width="700" height="400" /> 
+<img src="images/pixhawk_pins.png" width="914" height="360" /> 
 
 Ps.: The pins are numbered according to the following:
 
@@ -126,7 +126,7 @@ Ps.: The pins are numbered according to the following:
 
 The following image illustrate the correspondent pins in the RPi GPIO.
 
-<img src="images/rpi_gpio.png" width="700" height="400" /> 
+<img src="images/rpi_gpio.png" width="845" height="457" /> 
 
 To connect Pixhawk on 5 Volts is possible to follow with the connection of `POWER1` port in a LiPO battery, via Power Module (PM02, for example). Another option, for this setup moment, it is possible to supply the 5 Volts via the connection of the Pixhawk's `USB` on a smartphone charger, for example, or by keeping it in the laptop `USB`. Also, for this setup moment, the RPi is connected on 5 Volts via Power Supply (external source/charger). 
 
@@ -217,7 +217,7 @@ sudo MicroXRCEAgent serial --dev /dev/serial0 -b 921600
 
 In the command above we have used `/dev/ttyS3` to establish the XRCE_DDS communication, since it is related to `TELEM2`, according to the table:
 
-<img src="images/devs.png" width="700" height="400" /> 
+<img src="images/devs.png" width="360" height="353" /> 
 
 To see the ROS 2 topics available, run in a new RPi's terminal:
 
