@@ -1,4 +1,4 @@
-# Using he Raspberry Pi with the Pixhawk Controllers
+# Using the Raspberry Pi with the Pixhawk Controllers
 
 This section describes how to connect the Pixhawk to the Raspberry Pi ("RPi"). Both the software setup and the wire connections between the hardware are presented. 
 
