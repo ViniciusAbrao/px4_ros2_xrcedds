@@ -1,203 +1,155 @@
-#!/usr/bin/env python
-############################################################################
-#
-#   Copyright (C) 2022 PX4 Development Team. All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
-# 3. Neither the name PX4 nor the names of its contributors may be
-#    used to endorse or promote products derived from this software
-#    without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
-# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-#
-############################################################################
-
-__author__ = "Jaeyoung Lim"
-__contact__ = "jalim@ethz.ch"
-
-from re import M
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from rclpy.clock import Clock
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+from rclpy.qos import (
+    QoSProfile,
+    QoSReliabilityPolicy,
+    QoSHistoryPolicy,
+    QoSDurabilityPolicy,
+)
+from rclpy.duration import Duration
 
 from px4_msgs.msg import VehicleAttitude
 from px4_msgs.msg import VehicleLocalPosition
 from px4_msgs.msg import TrajectorySetpoint
-from geometry_msgs.msg import PoseStamped, Point
+
+from geometry_msgs.msg import PoseStamped, Point, TransformStamped
 from nav_msgs.msg import Path
 from visualization_msgs.msg import Marker
 
-import math
-from geometry_msgs.msg import TransformStamped
 from tf2_ros import TransformBroadcaster
 
-from sensor_msgs.msg import PointCloud2, Image
-
-def vector2PoseMsg(frame_id, position, attitude):
-    pose_msg = PoseStamped()
-    # msg.header.stamp = Clock().now().nanoseconds / 1000
-    pose_msg.header.frame_id=frame_id
-    pose_msg.pose.orientation.w = attitude[0]
-    pose_msg.pose.orientation.x = attitude[1]
-    pose_msg.pose.orientation.y = attitude[2]
-    pose_msg.pose.orientation.z = attitude[3]
-    pose_msg.pose.position.x = position[0]
-    pose_msg.pose.position.y = position[1]
-    pose_msg.pose.position.z = position[2]
-    return pose_msg
 
 class PX4Visualizer(Node):
-
     def __init__(self):
-        super().__init__('px4_visualizer')
-        
-        # Declare and acquire `framename` parameter
-        self.framename = self.declare_parameter(
-          'framename', 'camera_depth').get_parameter_value().string_value
+        super().__init__("visualizer")
 
-        # Initialize the transform broadcaster
-        self.tf_broadcaster = TransformBroadcaster(self)
-        
-        ## Configure subscritpions
-        qos_profile = QoSProfile(
-            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-            depth=1
+        # QoS: PX4 (subs) = BEST_EFFORT; RViz (pubs) = RELIABLE
+        qos_profile_sub_px4 = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=50,
+        )
+        qos_profile_pub_rviz = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=10,
         )
 
+        # --- SUBSCRIÇÕES DO PX4 (tópicos ABSOLUTOS) ---
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
-            '/fmu/out/vehicle_attitude',
+            "/fmu/out/vehicle_attitude",
             self.vehicle_attitude_callback,
-            qos_profile)
+            qos_profile_sub_px4,
+        )
         self.local_position_sub = self.create_subscription(
             VehicleLocalPosition,
-            '/fmu/out/vehicle_local_position',
+            "/fmu/out/vehicle_local_position_v1",  # <- _v1
             self.vehicle_local_position_callback,
-            qos_profile)
+            qos_profile_sub_px4,
+        )
         self.setpoint_sub = self.create_subscription(
             TrajectorySetpoint,
-            '/fmu/in/trajectory_setpoint',
+            "/fmu/in/trajectory_setpoint",
             self.trajectory_setpoint_callback,
-            qos_profile)
-            
-        self.depth_img_sub = self.create_subscription(
-            Image,
-            '/camera/depth/image_raw',
-            self.depth_image_callback,
-            qos_profile)
-        self.depth_points_sub = self.create_subscription(
-            PointCloud2,
-            '/camera/depth/points',
-            self.depth_points_callback,
-            qos_profile)
-        self.camera_img_sub = self.create_subscription(
-            Image,
-            '/camera/color/image_raw',
-            self.camera_image_callback,
-            qos_profile)
+            qos_profile_sub_px4,
+        )
 
-        self.vehicle_pose_pub = self.create_publisher(PoseStamped, '/px4_visualizer/vehicle_pose', 10)
-        self.vehicle_vel_pub = self.create_publisher(Marker, '/px4_visualizer/vehicle_velocity', 10)
-        self.vehicle_path_pub = self.create_publisher(Path, '/px4_visualizer/vehicle_path', 10)
-        self.setpoint_path_pub = self.create_publisher(Path, '/px4_visualizer/setpoint_path', 10)
+        # --- PUBLICADORES PARA RVIZ (namespaced pelo nó/launch) ---
+        self.vehicle_pose_pub = self.create_publisher(
+            PoseStamped, "px4_visualizer/vehicle_pose", qos_profile_pub_rviz
+        )
+        self.vehicle_vel_pub = self.create_publisher(
+            Marker, "px4_visualizer/vehicle_velocity", qos_profile_pub_rviz
+        )
+        self.vehicle_path_pub = self.create_publisher(
+            Path, "px4_visualizer/vehicle_path", qos_profile_pub_rviz
+        )
+        self.setpoint_path_pub = self.create_publisher(
+            Path, "px4_visualizer/setpoint_path", qos_profile_pub_rviz
+        )
+        # marcador “grande” para facilitar visualizar
+        self.body_marker_pub = self.create_publisher(
+            Marker, "px4_visualizer/body_marker", qos_profile_pub_rviz
+        )
 
-        self.camera_image = Image()
-        self.depth_image = Image()
-        self.depth_points = PointCloud2()
-        
-        self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
-        self.vehicle_local_position = np.array([0.0, 0.0, 0.0])
-        self.vehicle_local_velocity = np.array([0.0, 0.0, 0.0])
+        # --- ESTADO ---
+        self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])   # qw, qx, qy, qz (ENU)
+        self.vehicle_local_position = np.array([0.0, 0.0, 0.0])  # ENU em 'odom'
+        self.vehicle_local_velocity = np.array([0.0, 0.0, 0.0])  # ENU
         self.setpoint_position = np.array([0.0, 0.0, 0.0])
+
         self.vehicle_path_msg = Path()
         self.setpoint_path_msg = Path()
-        timer_period = 0.05  # seconds
-        self.timer = self.create_timer(timer_period, self.cmdloop_callback)
-        
-    def camera_image_callback(self, msg):
-        self.camera_image=msg
-    
-    def depth_points_callback(self, msg):
-        self.depth_image=msg
-    
-    def depth_image_callback(self, msg):    
-        self.depth_points=msg
-        
-    def get_quaternion_from_euler(self, roll, pitch, yaw):
-        qx = np.sin(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) - np.cos(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
-        qy = np.cos(roll/2) * np.sin(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.cos(pitch/2) * np.sin(yaw/2)
-        qz = np.cos(roll/2) * np.cos(pitch/2) * np.sin(yaw/2) - np.sin(roll/2) * np.sin(pitch/2) * np.cos(yaw/2)
-        qw = np.cos(roll/2) * np.cos(pitch/2) * np.cos(yaw/2) + np.sin(roll/2) * np.sin(pitch/2) * np.sin(yaw/2)
- 
-        return qx, qy, qz, qw
-    
-    def euler_from_quaternion(self, x, y, z, w):
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-    
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-    
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-     
-        return roll_x, pitch_y, yaw_z # in radians
+        self.trail_size = 1000
 
-    def vehicle_attitude_callback(self, msg):
-        # TODO: handle NED->ENU transformation 
-        self.vehicle_attitude[0] = msg.q[0]
-        self.vehicle_attitude[1] = msg.q[1]
-        self.vehicle_attitude[2] = -msg.q[2]
-        self.vehicle_attitude[3] = -msg.q[3]
+        # tolerância de tempo: carimbar msgs ligeiramente no passado
+        self.msg_tf_tolerance = 0.05  # 50 ms
 
-    def vehicle_local_position_callback(self, msg):
-        # TODO: handle NED->ENU transformation 
-        self.vehicle_local_position[0] = msg.x
-        self.vehicle_local_position[1] = -msg.y
-        self.vehicle_local_position[2] = -msg.z
-        self.vehicle_local_velocity[0] = msg.vx
-        self.vehicle_local_velocity[1] = -msg.vy
-        self.vehicle_local_velocity[2] = -msg.vz
+        # TF broadcaster (odom -> base_link)
+        self.tf_br = TransformBroadcaster(self)
+        self.base_frame = "base_link"
 
-    def trajectory_setpoint_callback(self, msg):
-        self.setpoint_position[0] = msg.position[0]
-        self.setpoint_position[1] = -msg.position[1]
-        self.setpoint_position[2] = -msg.position[2]
+        # Timer ~20 Hz
+        self.timer = self.create_timer(0.05, self.cmdloop_callback)
+
+    # -------------------- CALLBACKS PX4 --------------------
+
+    def vehicle_attitude_callback(self, msg: VehicleAttitude):
+        # NED (PX4) -> ENU (RViz), quaternion (qw,qx,qy,qz)
+        q_enu = 1 / np.sqrt(2) * np.array(
+            [
+                msg.q[0] + msg.q[3],
+                msg.q[1] + msg.q[2],
+                msg.q[1] - msg.q[2],
+                msg.q[0] - msg.q[3],
+            ]
+        )
+        q_enu = q_enu / np.linalg.norm(q_enu)
+        self.vehicle_attitude = q_enu.astype(float)
+
+    def vehicle_local_position_callback(self, msg: VehicleLocalPosition):
+        # NED -> ENU para posição/velocidade
+        self.vehicle_local_position[0] = float(msg.y)    # ENU.x  <- NED.y
+        self.vehicle_local_position[1] = float(msg.x)    # ENU.y  <- NED.x
+        self.vehicle_local_position[2] = float(-msg.z)   # ENU.z  <- -NED.z
+
+        self.vehicle_local_velocity[0] = float(msg.vy)
+        self.vehicle_local_velocity[1] = float(msg.vx)
+        self.vehicle_local_velocity[2] = float(-msg.vz)
+
+    def trajectory_setpoint_callback(self, msg: TrajectorySetpoint):
+        # NED -> ENU para visualizar setpoint
+        self.setpoint_position[0] = float(msg.position[1])
+        self.setpoint_position[1] = float(msg.position[0])
+        self.setpoint_position[2] = float(-msg.position[2])
+
+    # -------------------- HELPERS --------------------
+
+    def vector2PoseMsg(self, frame_id, position, attitude):
+        pose_msg = PoseStamped()
+        now = self.get_clock().now() - Duration(seconds=self.msg_tf_tolerance)
+        pose_msg.header.stamp = now.to_msg()
+        pose_msg.header.frame_id = frame_id
+        pose_msg.pose.orientation.w = float(attitude[0])
+        pose_msg.pose.orientation.x = float(attitude[1])
+        pose_msg.pose.orientation.y = float(attitude[2])
+        pose_msg.pose.orientation.z = float(attitude[3])
+        pose_msg.pose.position.x = float(position[0])
+        pose_msg.pose.position.y = float(position[1])
+        pose_msg.pose.position.z = float(position[2])
+        return pose_msg
 
     def create_arrow_marker(self, id, tail, vector):
         msg = Marker()
         msg.action = Marker.ADD
-        msg.header.frame_id = 'map'
-        # msg.header.stamp = Clock().now().nanoseconds / 1000
-        msg.ns = 'arrow'
+        msg.header.frame_id = "odom"
+        msg.header.stamp = (self.get_clock().now() - Duration(seconds=self.msg_tf_tolerance)).to_msg()
+        msg.ns = "arrow"
         msg.id = id
         msg.type = Marker.ARROW
         msg.scale.x = 0.1
@@ -207,72 +159,88 @@ class PX4Visualizer(Node):
         msg.color.g = 0.5
         msg.color.b = 0.0
         msg.color.a = 1.0
+
         dt = 0.3
         tail_point = Point()
-        tail_point.x = tail[0]
-        tail_point.y = tail[1]
-        tail_point.z = tail[2]
+        tail_point.x = float(tail[0])
+        tail_point.y = float(tail[1])
+        tail_point.z = float(tail[2])
+
         head_point = Point()
-        head_point.x = tail[0] + dt * vector[0]
-        head_point.y = tail[1] + dt * vector[1]
-        head_point.z = tail[2] + dt * vector[2]
+        head_point.x = float(tail[0] + dt * vector[0])
+        head_point.y = float(tail[1] + dt * vector[1])
+        head_point.z = float(tail[2] + dt * vector[2])
+
         msg.points = [tail_point, head_point]
         return msg
 
+    # -------------------- LOOP --------------------
+
     def cmdloop_callback(self):
-        vehicle_pose_msg = vector2PoseMsg('map', self.vehicle_local_position, self.vehicle_attitude)
+        # 1) TF dinâmica: odom -> base_link (carimbo "now")
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = "odom"
+        t.child_frame_id = self.base_frame
+        t.transform.translation.x = float(self.vehicle_local_position[0])
+        t.transform.translation.y = float(self.vehicle_local_position[1])
+        t.transform.translation.z = float(self.vehicle_local_position[2])
+        t.transform.rotation.w = float(self.vehicle_attitude[0])
+        t.transform.rotation.x = float(self.vehicle_attitude[1])
+        t.transform.rotation.y = float(self.vehicle_attitude[2])
+        t.transform.rotation.z = float(self.vehicle_attitude[3])
+        self.tf_br.sendTransform(t)
+
+        # 2) Mensagens em 'odom' (carimbo "now - tolerance")
+        vehicle_pose_msg = self.vector2PoseMsg("odom", self.vehicle_local_position, self.vehicle_attitude)
         self.vehicle_pose_pub.publish(vehicle_pose_msg)
 
-        # Publish time history of the vehicle path
         self.vehicle_path_msg.header = vehicle_pose_msg.header
-        self.vehicle_path_msg.poses.append(vehicle_pose_msg) 
+        self.vehicle_path_msg.poses.append(vehicle_pose_msg)
+        if len(self.vehicle_path_msg.poses) > self.trail_size:
+            del self.vehicle_path_msg.poses[0]
         self.vehicle_path_pub.publish(self.vehicle_path_msg)
 
-        # Publish time history of the vehicle path
-        setpoint_pose_msg = vector2PoseMsg('map', self.setpoint_position, self.vehicle_attitude)
+        setpoint_pose_msg = self.vector2PoseMsg("odom", self.setpoint_position, self.vehicle_attitude)
         self.setpoint_path_msg.header = setpoint_pose_msg.header
         self.setpoint_path_msg.poses.append(setpoint_pose_msg)
+        if len(self.setpoint_path_msg.poses) > self.trail_size:
+            del self.setpoint_path_msg.poses[0]
         self.setpoint_path_pub.publish(self.setpoint_path_msg)
 
-        # Publish arrow markers for velocity
         velocity_msg = self.create_arrow_marker(1, self.vehicle_local_position, self.vehicle_local_velocity)
         self.vehicle_vel_pub.publish(velocity_msg)
-        
-        #Publish TF2
-        t = TransformStamped()
-        # Read message content and assign it to
-        # corresponding tf variables
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = self.framename
-        t.child_frame_id = 'world'
-        # get x, y and z translation
-        t.transform.translation.x = self.vehicle_local_position[0]
-        t.transform.translation.y = self.vehicle_local_position[1]
-        t.transform.translation.z = self.vehicle_local_position[2]
-        # rotation
-        q1=self.vehicle_attitude[0]
-        q2=self.vehicle_attitude[1]
-        q3=self.vehicle_attitude[2]
-        q4=self.vehicle_attitude[3]
-        #roll,pitch,yaw=self.euler_from_quaternion(q1, q2, q3, q4)
-        #q1r,q2r,q3r,q4r=self.get_quaternion_from_euler(-1.5708, 0, -1.5708)
-        t.transform.rotation.x = q1
-        t.transform.rotation.y = q2
-        t.transform.rotation.z = q3
-        t.transform.rotation.w = q4
-        # Send the transformation
-        self.tf_broadcaster.sendTransform(t)
-        
+
+        # marcador “grande” do corpo pra ficar fácil de ver
+        body = Marker()
+        body.header.frame_id = "odom"
+        body.header.stamp = (self.get_clock().now() - Duration(seconds=self.msg_tf_tolerance)).to_msg()
+        body.ns = "body"
+        body.id = 0
+        body.type = Marker.SPHERE
+        body.action = Marker.ADD
+        body.pose.position.x = float(self.vehicle_local_position[0])
+        body.pose.position.y = float(self.vehicle_local_position[1])
+        body.pose.position.z = float(self.vehicle_local_position[2])
+        body.pose.orientation.w = 1.0
+        body.scale.x = 0.6
+        body.scale.y = 0.6
+        body.scale.z = 0.2
+        body.color.r = 1.0
+        body.color.g = 0.9
+        body.color.b = 0.0
+        body.color.a = 1.0
+        self.body_marker_pub.publish(body)
+
+
 def main(args=None):
     rclpy.init(args=args)
-
-    px4_visualizer = PX4Visualizer()
-
-    rclpy.spin(px4_visualizer)
-
-    px4_visualizer.destroy_node()
+    node = PX4Visualizer()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
+

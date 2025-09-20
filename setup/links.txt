@@ -1,0 +1,90 @@
+https://releases.ubuntu.com/jammy/
+
+https://github.com/ViniciusAbrao/px4_ros2_xrcedds/blob/master/tutorial/tutorial.md
+https://github.com/ViniciusAbrao/px4_ros2_xrcedds/tree/master?tab=readme-ov-file
+https://docs.px4.io/v1.15/en/middleware/uxrce_dds.html
+https://docs.px4.io/v1.15/en/companion_computer/pixhawk_rpi.html
+https://docs.px4.io/v1.15/en/ros2/user_guide.html
+https://github.com/Jaeyoung-Lim/px4-offboard/tree/master
+
+__________________________________________________
+
+https://docs.qgroundcontrol.com/master/en/qgc-user-guide/getting_started/download_and_install.html
+
+https://github.com/eOvic/PX4-ROS2-SLAM-Control/tree/main/drone_slam
+______________________________________
+sudo apt update && sudo apt install locales
+sudo locale-gen en_US en_US.UTF-8
+sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export LANG=en_US.UTF-8
+sudo apt install software-properties-common
+sudo add-apt-repository universe
+sudo apt update && sudo apt install curl -y
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update && sudo apt upgrade -y
+sudo apt install ros-humble-desktop
+sudo apt install ros-dev-tools
+source /opt/ros/humble/setup.bash
+
+em: gedit ~/.bashrc
+source /opt/ros/humble/setup.bash
+
+sudo apt-get install ros-${ROS_DISTRO}-ros-gz
+
+______________________________________
+
+sudo apt install git
+sudo apt install python3-pip
+
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
+______________________________________
+
+git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
+cd Micro-XRCE-DDS-Agent
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+sudo ldconfig /usr/local/lib/
+
+______________________________________
+mkdir -p ~/px4_ws/src/
+cd ~/px4_ws/src/
+git clone https://github.com/PX4/px4_msgs.git
+git clone https://github.com/Jaeyoung-Lim/px4-offboard.git
+cd ..
+colcon build
+
+se der erro:
+python3 -m pip install setuptools==65.5.0
+se precisar:
+git clone https://github.com/PX4/px4_ros_com.git
+__________________________________________
+
+
+MicroXRCEAgent udp4 -p 8888
+ou
+sudo MicroXRCEAgent serial --dev /dev/AMA0 -b 921600
+sudo MicroXRCEAgent serial --dev /dev/serial0 -b 921600
+ou
+sudo MicroXRCEAgent serial --dev /dev/ttyACM0 -b 921600
+sudo MicroXRCEAgent serial --dev /dev/USB0 -b 921600
+
+
+__________________________________________________
+
+
+terminal 1:
+cd ~/PX4-Autopilot/
+make px4_sitl gz_x500
+
+terminal 2:
+MicroXRCEAgent udp4 -p 8888
+
+terminal 3:
+cd ~/px4_ws/
+source install/local_setup.bash
+ros2 launch px4_offboard offboard_position_control.launch.py
